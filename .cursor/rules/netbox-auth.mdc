@@ -1,0 +1,50 @@
+---
+description: "NetBox API authentication best practices - v2 tokens, provisioning endpoint"
+globs: ["**/*.py"]
+alwaysApply: false
+---
+
+# NetBox Authentication Best Practices
+
+## v2 Tokens (CRITICAL - NetBox 4.5+)
+
+**Always use v2 tokens on NetBox 4.5+.** v1 tokens are deprecated in 4.7.
+
+```python
+# WRONG: v1 token format (deprecated)
+headers = {"Authorization": f"Token {TOKEN}"}
+
+# CORRECT: v2 token format
+headers = {"Authorization": f"Bearer {TOKEN}"}
+# Token format: nbt_<key>.<secret>
+```
+
+v2 tokens use HMAC-SHA256 hashing - the plaintext is never stored in the database.
+
+## Provisioning Endpoint
+
+Use `/api/users/tokens/provision/` for automated token creation in CI/CD pipelines:
+
+```python
+response = requests.post(
+    f"{NETBOX_URL}/api/users/tokens/provision/",
+    json={"username": username, "password": password}
+)
+new_token = response.json()["key"]
+```
+
+## pynetbox Authentication
+
+```python
+import pynetbox
+
+# pynetbox handles auth header format automatically
+nb = pynetbox.api(
+    url="https://netbox.example.com",
+    token="nbt_abc123.xxxxxxxxxxxx"
+)
+```
+
+## References
+
+See `skills/netbox-integration-best-practices/references/rules/auth-*.md` for detailed rules.

@@ -1,0 +1,67 @@
+---
+description: "NetBox API performance optimization - brief mode, exclude config_context"
+globs: ["**/*.py"]
+alwaysApply: false
+---
+
+# NetBox Performance Best Practices
+
+## Exclude config_context (HIGH)
+
+Config context computation is expensive. Always exclude when not needed.
+
+```python
+# Slow - includes computed config_context
+response = requests.get(f"{API_URL}/dcim/devices/")
+
+# Fast - excludes config_context
+response = requests.get(
+    f"{API_URL}/dcim/devices/",
+    params={"exclude": "config_context"}
+)
+```
+
+## Use Brief Mode for Lists (HIGH)
+
+Brief mode returns minimal nested object data.
+
+```python
+# Full response (~2KB per device)
+response = requests.get(f"{API_URL}/dcim/devices/")
+
+# Brief response (~500 bytes per device)
+response = requests.get(f"{API_URL}/dcim/devices/?brief=True")
+```
+
+Combine with field selection for maximum efficiency:
+```python
+params = {
+    "brief": "True",
+    "exclude": "config_context",
+    "fields": "id,name,status,site"
+}
+```
+
+## Avoid `?q=` Search Filter at Scale (HIGH)
+
+The generic `?q=` search filter searches across multiple fields and is expensive at scale.
+
+```python
+# WRONG: Generic search across all fields
+response = requests.get(f"{API_URL}/dcim/devices/?q=nyc")
+
+# CORRECT: Specific field filters
+response = requests.get(f"{API_URL}/dcim/devices/?name__ic=nyc")
+response = requests.get(f"{API_URL}/dcim/devices/?site=nyc-dc1")
+```
+
+## Performance Checklist
+
+- [ ] Using `?brief=True` for list operations
+- [ ] Excluding `config_context` when not needed
+- [ ] Using specific filters instead of `?q=` search
+- [ ] Explicit pagination with appropriate page sizes
+
+## References
+
+See `skills/netbox-integration-best-practices/references/rules/perf-*.md` for detailed rules.

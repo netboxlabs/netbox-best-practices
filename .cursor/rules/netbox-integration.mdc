@@ -1,0 +1,118 @@
+---
+description: "NetBox integration patterns - Diode, pynetbox, webhooks, change tracking"
+globs: ["**/*.py"]
+alwaysApply: false
+---
+
+# NetBox Integration Best Practices
+
+## Use Diode for Simplified Ingestion (HIGH)
+
+For data ingestion, use [Diode](https://github.com/netboxlabs/diode) instead of direct REST API.
+
+**Benefits:**
+- Automatic dependency resolution (no need to create objects in order)
+- Reference objects by name, not ID
+- Single gRPC call for batch operations
+- Built-in error handling
+
+```python
+from netboxlabs.diode.sdk import DiodeClient
+from netboxlabs.diode.sdk.ingester import Device, Entity
+
+with DiodeClient(
+    target="https://<your-diode-host>:443/diode",
+    app_name="network-discovery",
+    app_version="1.0.0",
+) as client:
+    device = Device(
+        name="switch-nyc-01",
+        device_type="Cisco Catalyst 9300",  # By name!
+        manufacturer="Cisco",                # Auto-created if missing
+        site="NYC-DC1",                      # Auto-created if missing
+        role="Access Switch",
+        status="active",
+    )
+    response = client.ingest([Entity(device=device)])
+```
+
+Use `DiodeDryRunClient` to test ingestion without sending to server.
+
+## Use pynetbox for Python Integrations (HIGH)
+
+```python
+import pynetbox
+
+nb = pynetbox.api("https://netbox.example.com", token=TOKEN)
+
+# Automatic pagination
+all_devices = nb.dcim.devices.all()
+
+# Filtering
+active_devices = nb.dcim.devices.filter(status="active", site="nyc")
+
+# Create
+new_device = nb.dcim.devices.create(name="switch-01", ...)
+
+# Update
+device = nb.dcim.devices.get(name="switch-01")
+device.status = "active"
+device.save()
+```
+
+## Webhook Configuration
+
+Configure webhooks for event-driven integrations:
+
+```python
+# Webhook payload structure
+{
+    "event": "created",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "model": "dcim.device",
+    "username": "admin",
+    "request_id": "abc123",
+    "data": { ... },       # Current state
+    "snapshots": {
+        "prechange": {},   # State before change
+        "postchange": {}   # State after change
+    }
+}
+```
+
+**Best practices:**
+- Use HTTPS endpoints
+- Verify webhook signatures
+- Process asynchronously (queue and acknowledge quickly)
+- Handle idempotency (webhooks may be retried)
+
+## When to Use What
+
+| Scenario | Tool |
+|----------|------|
+| Network discovery pushing data | **Diode** |
+| Bulk migrations | **Diode** |
+| Python scripts/automation | **pynetbox** |
+| Reading/querying data | REST/GraphQL |
+| Single object CRUD | REST API |
+| Event-driven updates | Webhooks |
+| Complex filtered queries | REST/GraphQL |
+
+## Change Tracking
+
+Query object changes for audit trails:
+
+```python
+# Get changes for an object
+response = requests.get(
+    f"{API_URL}/extras/object-changes/",
+    params={
+        "changed_object_type": "dcim.device",
+        "changed_object_id": device_id
+    }
+)
+```
+
+## References
+
+See `skills/netbox-integration-best-practices/references/rules/integ-*.md` for detailed rules.

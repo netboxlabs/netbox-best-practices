@@ -1,0 +1,130 @@
+---
+description: "NetBox data modeling best practices - dependency order, hierarchies, custom fields"
+globs: ["**/*.py"]
+alwaysApply: false
+---
+
+# NetBox Data Modeling Best Practices
+
+## Dependency Order (CRITICAL)
+
+Objects must be created in dependency order. Parents before children.
+
+```python
+# CORRECT ORDER for device creation:
+# 1. Region (optional)
+# 2. Site Group (optional)
+# 3. Site
+# 4. Location (optional)
+# 5. Rack (optional)
+# 6. Manufacturer
+# 7. Device Type
+# 8. Device Role
+# 9. Platform (optional)
+# 10. Device
+# 11. Interfaces, Console Ports, etc.
+# 12. IP Addresses, Cables, etc.
+```
+
+**Tip:** Use [Diode](https://github.com/netboxlabs/diode) for automatic dependency resolution.
+
+## Site Hierarchy
+
+```
+Region (optional)
+└── Site Group (optional)
+    └── Site
+        └── Location (recursive)
+            └── Rack
+                └── Device
+```
+
+- Sites are physical locations (data centers, offices)
+- Locations are areas within a site (rooms, floors, cages)
+- Racks are equipment racks within a location
+
+## IPAM Hierarchy
+
+```
+RIR
+└── Aggregate
+    └── Prefix (recursive - supports nesting)
+        └── IP Address
+```
+
+- VRFs provide routing table isolation
+- IP Addresses can be assigned to interfaces
+- Use VLAN Groups to scope VLANs
+
+## Natural Keys
+
+Use natural keys (names) for human-readable queries:
+
+```python
+# Query by name (natural key)
+params = {"name": "switch-nyc-01"}
+
+# Query by slug
+params = {"slug": "switch-nyc-01"}
+
+# For device types, combine manufacturer + model
+params = {"manufacturer": "cisco", "model": "Catalyst 9300"}
+```
+
+## Custom Fields
+
+```python
+# Reading custom fields
+device = response.json()
+env = device["custom_fields"]["environment"]
+
+# Writing custom fields
+data = {
+    "name": "switch-01",
+    "custom_fields": {
+        "environment": "production",
+        "cost_center": "IT-001"
+    }
+}
+
+# Filtering by custom field (cf_ prefix)
+params = {"cf_environment": "production"}
+```
+
+## Tags
+
+Use tags for cross-cutting classification that doesn't fit the hierarchy:
+
+```python
+# Assign tags by name or slug
+data = {
+    "name": "switch-01",
+    "tags": [
+        {"name": "production"},
+        {"name": "monitored"}
+    ]
+}
+
+# Filter by tag
+params = {"tag": "production"}
+params = {"tag__n": "decommissioned"}  # Exclude tag
+```
+
+## Tenant Isolation
+
+Use tenants for logical resource separation (customers, business units):
+
+```python
+data = {
+    "name": "switch-01",
+    "tenant": tenant_id  # All related objects inherit tenant context
+}
+
+# Query by tenant
+params = {"tenant": "acme-corp"}
+params = {"tenant_id": 123}
+```
+
+## References
+
+See `skills/netbox-integration-best-practices/references/rules/data-*.md` for detailed rules.

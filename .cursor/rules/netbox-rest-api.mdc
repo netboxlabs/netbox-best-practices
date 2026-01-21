@@ -1,0 +1,113 @@
+---
+description: "NetBox REST API best practices - pagination, filtering, bulk operations, performance"
+globs: ["**/*.py"]
+alwaysApply: false
+---
+
+# NetBox REST API Best Practices
+
+## Always Paginate (HIGH)
+
+NetBox defaults to 50 items per page (max 1000). Always handle pagination explicitly.
+
+```python
+# WRONG: Assumes all results returned
+response = requests.get(f"{API_URL}/dcim/devices/", headers=headers)
+devices = response.json()["results"]  # Only first 50!
+
+# CORRECT: Paginate through all results
+def get_all_objects(endpoint, limit=100):
+    all_results = []
+    url = f"{API_URL}/{endpoint}/?limit={limit}"
+    while url:
+        response = requests.get(url, headers=headers)
+        data = response.json()
+        all_results.extend(data["results"])
+        url = data.get("next")
+    return all_results
+```
+
+## Use Brief Mode for Lists (HIGH)
+
+Reduces payload size significantly for list operations.
+
+```python
+# Full nested objects (slow)
+response = requests.get(f"{API_URL}/dcim/devices/")
+
+# Brief mode - minimal nested data (fast)
+response = requests.get(f"{API_URL}/dcim/devices/?brief=True")
+```
+
+## Use Field Selection (HIGH)
+
+For more control than brief mode, specify exactly which fields to include:
+
+```python
+# Select specific fields (including nested)
+response = requests.get(
+    f"{API_URL}/dcim/devices/?fields=id,name,status,site.name,primary_ip4.address"
+)
+```
+
+## Exclude config_context (HIGH)
+
+Config context is expensive to compute. Exclude when not needed.
+
+```python
+response = requests.get(
+    f"{API_URL}/dcim/devices/",
+    params={"exclude": "config_context"}
+)
+```
+
+## Use PATCH, Not PUT (HIGH)
+
+```python
+# WRONG: PUT replaces entire object
+requests.put(f"{API_URL}/dcim/devices/123/", json=full_device_data)
+
+# CORRECT: PATCH updates only specified fields
+requests.patch(f"{API_URL}/dcim/devices/123/", json={"status": "active"})
+```
+
+## Bulk Operations via List Endpoints (CRITICAL)
+
+```python
+# WRONG: Individual requests (slow)
+for device in devices:
+    requests.post(f"{API_URL}/dcim/devices/", json=device)
+
+# CORRECT: Bulk create (fast)
+requests.post(f"{API_URL}/dcim/devices/", json=devices_list)
+
+# Bulk update
+requests.patch(f"{API_URL}/dcim/devices/", json=[
+    {"id": 1, "status": "active"},
+    {"id": 2, "status": "active"}
+])
+
+# Bulk delete
+requests.delete(f"{API_URL}/dcim/devices/", json=[{"id": 1}, {"id": 2}])
+```
+
+All operations are atomic (all-or-none). Signals and webhooks fire for **each object** (not once per batch).
+
+## Efficient Filtering
+
+```python
+# Use lookup expressions
+params = {
+    "name__ic": "switch",           # Case-insensitive contains
+    "status__in": "active,planned", # Multiple values
+    "created__gte": "2024-01-01",   # Greater than or equal
+    "cf_environment": "production", # Custom field filter
+}
+
+# Avoid q= search filter at scale - it's slow
+# Use specific filters instead
+```
+
+## References
+
+See `skills/netbox-integration-best-practices/references/rules/rest-*.md` for detailed rules.

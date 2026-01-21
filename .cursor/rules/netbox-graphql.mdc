@@ -1,0 +1,187 @@
+---
+description: "NetBox GraphQL API best practices - pagination, complexity, query optimization"
+globs: ["**/*.py", "**/*.graphql"]
+alwaysApply: false
+---
+
+# NetBox GraphQL Best Practices
+
+## Use Query Optimizer (CRITICAL)
+
+Always use [netbox-graphql-query-optimizer](https://github.com/netboxlabs/netbox-graphql-query-optimizer) to analyze queries before production.
+
+```bash
+pip install netbox-graphql-query-optimizer
+netbox-query-optimizer analyze query.graphql --config optimizer.yaml
+```
+
+## Always Paginate (CRITICAL)
+
+Every list query MUST have pagination limits.
+
+```graphql
+# WRONG: No pagination
+query {
+  device_list {
+    name
+    interfaces { name }
+  }
+}
+
+# CORRECT: Explicit pagination
+query {
+  device_list(first: 100) {
+    name
+    interfaces(first: 50) { name }
+  }
+}
+```
+
+## Paginate at Every Nesting Level (HIGH)
+
+Nested lists multiply result sizes exponentially.
+
+```graphql
+# WRONG: Unpaginated nested lists
+query {
+  site_list(first: 10) {
+    devices { interfaces { ip_addresses { ... } } }
+  }
+}
+
+# CORRECT: Pagination at each level
+query {
+  site_list(first: 10) {
+    devices(first: 50) {
+      interfaces(first: 20) {
+        ip_addresses(first: 10) { ... }
+      }
+    }
+  }
+}
+```
+
+## Offset Pagination Degrades at Scale (HIGH)
+
+NetBox uses offset pagination which slows as you paginate deeper:
+
+| Offset | Impact |
+|--------|--------|
+| 0-1000 | Fast |
+| 10,000+ | Slow |
+| 100,000+ | Timeout risk |
+
+**Version-specific strategies:**
+
+| Version | Strategy |
+|---------|----------|
+| 4.4.x | Offset only (avoid deep pagination) |
+| 4.5.x | ID range filtering workaround |
+| 4.6.0+ | Cursor-based (`start` param) - [#21110](https://github.com/netbox-community/netbox/issues/21110) |
+
+**4.5.x workaround** - Emulate cursors with ID filtering:
+
+```graphql
+query GetDevices($minId: Int!, $limit: Int!) {
+  device_list(limit: $limit, filters: { id__gte: $minId }) {
+    id  # Required - track max(id)+1 for next page
+    name
+  }
+}
+```
+
+## Select Only Needed Fields (HIGH)
+
+```graphql
+# WRONG: Selecting everything
+query {
+  device_list(first: 100) {
+    id name status serial asset_tag
+    site { id name slug status region { ... } }
+    device_type { id model manufacturer { ... } }
+    # ... many more fields
+  }
+}
+
+# CORRECT: Only what you need
+query {
+  device_list(first: 100) {
+    name
+    status
+    site { name }
+  }
+}
+```
+
+## Filter by ID to Avoid JOINs (HIGH)
+
+```graphql
+# SUBOPTIMAL: Requires JOIN to sites table
+device_list(filters: {site: {name: {exact: "NYC-DC1"}}})
+
+# OPTIMAL: Uses local site_id column directly
+device_list(filters: {site_id: 123})
+```
+
+## Avoid Nested Filters (HIGH)
+
+Use local filter fields (4.5.1+) instead of deeply nested paths:
+
+```graphql
+# SUBOPTIMAL: Filter depth 3
+interface_list(filters: {device: {site: {name: {exact: "NYC-DC1"}}}})
+
+# OPTIMAL: Filter depth 2 (local site filter)
+interface_list(filters: {site: {name: {exact: "NYC-DC1"}}})
+```
+
+## Keep Query Depth ≤3 (HIGH)
+
+Deep nesting causes performance issues. Never exceed depth 5.
+
+```graphql
+# WRONG: Deep nesting (depth 5)
+query {
+  site_list {
+    devices {
+      interfaces {
+        ip_addresses {
+          vrf { name }  # Depth 5
+        }
+      }
+    }
+  }
+}
+
+# CORRECT: Flatten with separate queries or depth ≤3
+query {
+  device_list(filters: {site: {name: {exact: "NYC"}}}, first: 100) {
+    name
+    interfaces(first: 50) { name }
+  }
+}
+```
+
+## Complexity Budgets
+
+| Query Type | Max Score |
+|------------|-----------|
+| Dashboard widgets | 50 |
+| Autocomplete | 25 |
+| List views | 150 |
+| Detail views | 200 |
+| Reports | 500 |
+
+## GraphQL vs REST Decision
+
+| Use Case | Recommendation |
+|----------|----------------|
+| Fetching specific fields from related objects | GraphQL |
+| Simple CRUD operations | REST |
+| Bulk create/update/delete | REST |
+| Complex nested queries | GraphQL (with care) |
+| High-volume reads | REST with brief mode |
+
+## References
+
+See `skills/netbox-integration-best-practices/references/rules/graphql-*.md` for detailed rules.
