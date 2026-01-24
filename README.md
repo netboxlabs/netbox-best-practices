@@ -7,8 +7,33 @@ Best practices for NetBox API integrations, available for multiple AI coding ass
 | Audience | Start Here |
 |----------|------------|
 | **Engineers** | [HUMAN.md](./HUMAN.md) - Best practices guide |
-| **Claude Code users** | Skills auto-discovered from `skills/` directory |
-| **Cursor IDE users** | Rules in `.cursor/rules/` directory |
+| **Claude Code users** | Install skills (see below) |
+| **Cursor IDE users** | Install rules (see below) |
+
+### Claude Code Installation
+
+**Option 1: npx skills CLI**
+```bash
+npx skills add netboxlabs/netbox-best-practices
+```
+
+**Option 2: Manual install**
+```bash
+# Global (all projects)
+cp -r skills/* ~/.claude/skills/
+
+# Or project-local
+cp -r skills/* .claude/skills/
+```
+
+### Cursor IDE Installation
+
+Copy `.cursor/rules/` to your project root:
+```bash
+cp -r .cursor/rules/ /path/to/your/project/.cursor/rules/
+```
+
+Rules are auto-applied based on file patterns. See [Cursor Rules docs](https://cursor.com/docs/context/rules) for details.
 
 ## Available Content
 
