@@ -1,17 +1,7 @@
 ---
-skill: netbox-integration-best-practices
-version: 1.0.0
-triggers:
-  - netbox
-  - netbox api
-  - netbox integration
-  - netbox rest
-  - netbox graphql
-  - pynetbox
-  - netbox automation
-  - diode
-  - netbox diode
-description: Best practices for building integrations with NetBox REST and GraphQL APIs
+name: netbox-integration-best-practices
+description: Best practices for building integrations with NetBox REST and GraphQL APIs. Use when building NetBox API integrations, reviewing integration code, troubleshooting NetBox performance issues, planning automation architecture, writing scripts that interact with NetBox, using pynetbox, configuring Diode for data ingestion, or implementing NetBox webhooks.
+license: Apache-2.0
 ---
 
 # NetBox Integration Best Practices Skill
