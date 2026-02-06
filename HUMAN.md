@@ -318,6 +318,76 @@ with DiodeDryRunClient(app_name="my-app", output_dir="./test") as client:
 
 ---
 
+## Branching Plugin Integration
+
+> Requires [netbox-branching](https://github.com/netboxlabs/netbox-branching) plugin.
+
+### Branch Lifecycle
+
+| State | Description | Allowed Operations |
+|-------|-------------|-------------------|
+| `NEW` | Just created | None |
+| `PROVISIONING` | Schema being created | None |
+| `READY` | Ready for use | Read, write, sync, merge, revert |
+| `SYNCING/MERGING` | Operation in progress | Read only |
+| `MERGED` | Successfully merged | Read only (historical) |
+
+### Complete Workflow
+
+```python
+import requests
+import time
+
+NETBOX_URL = "https://netbox.example.com"
+HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
+
+# 1. Create branch
+branch = requests.post(
+    f"{NETBOX_URL}/api/plugins/branching/branches/",
+    headers=HEADERS,
+    json={"name": "feature-update", "description": "Q1 updates"}
+).json()
+schema_id = branch["schema_id"]  # 8-char ID for X-NetBox-Branch header
+
+# 2. Wait for READY state
+while True:
+    b = requests.get(f"{NETBOX_URL}/api/plugins/branching/branches/{branch['id']}/", headers=HEADERS).json()
+    if b["status"]["value"] == "ready":
+        break
+    time.sleep(2)
+
+# 3. Work in branch context
+branch_headers = {**HEADERS, "X-NetBox-Branch": schema_id}
+requests.post(f"{NETBOX_URL}/api/dcim/devices/", headers=branch_headers, json={...})
+
+# 4. Merge (returns async Job)
+job = requests.post(
+    f"{NETBOX_URL}/api/plugins/branching/branches/{branch['id']}/merge/",
+    headers=HEADERS,
+    json={"commit": True}  # Use False for dry-run validation
+).json()
+
+# 5. Poll until complete
+while True:
+    j = requests.get(job["url"], headers=HEADERS).json()
+    if j["status"]["value"] == "completed":
+        break
+    if j["status"]["value"] in ("errored", "failed"):
+        raise RuntimeError("Merge failed")
+    time.sleep(2)
+```
+
+### Key Points
+
+| Concept | Details |
+|---------|---------|
+| **Context header** | `X-NetBox-Branch: {schema_id}` (8-char ID, NOT branch name or numeric ID) |
+| **Async operations** | sync, merge, revert all return Job objects—poll for completion |
+| **Dry-run** | All async ops accept `{"commit": false}` for validation |
+| **Job statuses** | `pending` → `running` → `completed` (or `errored`/`failed`) |
+
+---
+
 ## Performance Tips
 
 1. **Exclude config_context** - Single biggest performance win for device queries

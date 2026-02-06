@@ -53,6 +53,7 @@ When working on NetBox integrations, follow these key principles:
 ### Integration (`integ-`)
 - Use Diode for high-volume ingestion (HIGH)
 - Use pynetbox for Python integrations (HIGH)
+- Use branching plugin for change management workflows (HIGH) - requires [netbox-branching](https://github.com/netboxlabs/netbox-branching)
 - Configure webhooks for change notifications
 - Query object changes for audit trails
 
@@ -76,3 +77,4 @@ When making changes:
 - [pynetbox](https://github.com/netbox-community/pynetbox) - Official Python client
 - [Diode](https://github.com/netboxlabs/diode) - High-volume data ingestion
 - [netbox-graphql-query-optimizer](https://github.com/netboxlabs/netbox-graphql-query-optimizer)
+- [netbox-branching](https://github.com/netboxlabs/netbox-branching) - Change management plugin

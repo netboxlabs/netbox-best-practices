@@ -103,6 +103,9 @@ Rules for integration patterns, tooling, and best practices.
 |------|--------|-------------|
 | [integ-diode-ingestion](./integ-diode-ingestion.md) | HIGH | Use Diode for simplified data ingestion |
 | [integ-pynetbox-client](./integ-pynetbox-client.md) | HIGH | Use pynetbox for Python integrations |
+| [integ-branch-api-workflow](./integ-branch-api-workflow.md) | HIGH | Complete branching lifecycle (plugin required) |
+| [integ-branch-context-header](./integ-branch-context-header.md) | HIGH | Switch context with X-NetBox-Branch header (plugin required) |
+| [integ-branch-async-operations](./integ-branch-async-operations.md) | MEDIUM | Job polling for sync/merge/revert (plugin required) |
 | [integ-webhook-configuration](./integ-webhook-configuration.md) | MEDIUM | Configure webhooks for event-driven integration |
 | [integ-change-tracking](./integ-change-tracking.md) | LOW | Query object changes for audit trails |
 
@@ -119,7 +122,7 @@ Rules for integration patterns, tooling, and best practices.
 | GraphQL | 11 | 2 CRITICAL, 6 HIGH, 2 MEDIUM, 1 LOW |
 | Performance | 2 | 2 HIGH |
 | Data Modeling | 7 | 1 CRITICAL, 6 MEDIUM |
-| Integration | 4 | 2 HIGH, 1 MEDIUM, 1 LOW |
-| **Total** | **38** | **5 CRITICAL, 16 HIGH, 12 MEDIUM, 5 LOW** |
+| Integration | 7 | 4 HIGH, 2 MEDIUM, 1 LOW |
+| **Total** | **41** | **5 CRITICAL, 19 HIGH, 13 MEDIUM, 5 LOW** |
 
 > **Note:** Generic software development best practices (token storage, retry strategies, connection pooling, caching, parallelization, etc.) are intentionally excluded. This skill focuses on NetBox and Diode-specific patterns.
