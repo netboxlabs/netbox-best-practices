@@ -79,6 +79,14 @@ Apply these practices when:
 - Use `pip install netboxlabs-diode-sdk` for Python
 - Use REST/GraphQL API for reading; use Diode for writing/populating
 
+### Branching (Plugin)
+> Requires [netbox-branching](https://github.com/netboxlabs/netbox-branching) plugin.
+
+- **Lifecycle**: Create → Wait (PROVISIONING→READY) → Work → Sync → Merge
+- **Context header**: `X-NetBox-Branch: {schema_id}` (8-char ID, not name)
+- **Async operations**: sync/merge/revert return Job objects—poll for completion
+- **Dry-run**: All async ops accept `{"commit": false}` for validation
+
 ## Rules by Category
 
 ### Authentication Rules
@@ -144,6 +152,9 @@ Apply these practices when:
 |------|--------|-------------|
 | [integ-diode-ingestion](./references/rules/integ-diode-ingestion.md) | HIGH | Use Diode for high-volume data ingestion |
 | [integ-pynetbox-client](./references/rules/integ-pynetbox-client.md) | HIGH | Use pynetbox for Python |
+| [integ-branch-api-workflow](./references/rules/integ-branch-api-workflow.md) | HIGH | Complete branching lifecycle (plugin) |
+| [integ-branch-context-header](./references/rules/integ-branch-context-header.md) | HIGH | Branch context with X-NetBox-Branch header (plugin) |
+| [integ-branch-async-operations](./references/rules/integ-branch-async-operations.md) | MEDIUM | Job polling for sync/merge/revert (plugin) |
 | [integ-webhook-configuration](./references/rules/integ-webhook-configuration.md) | MEDIUM | Configure webhooks |
 | [integ-change-tracking](./references/rules/integ-change-tracking.md) | LOW | Query object changes |
 
@@ -159,6 +170,7 @@ Apply these practices when:
 - [netbox-graphql-query-optimizer](https://github.com/netboxlabs/netbox-graphql-query-optimizer) - Query analysis (essential for GraphQL)
 - [Diode](https://github.com/netboxlabs/diode) - Data ingestion service (for high-volume writes)
 - [Diode Python SDK](https://github.com/netboxlabs/diode-sdk-python) - Python client for Diode
+- [NetBox Branching](https://github.com/netboxlabs/netbox-branching) - Change management plugin (optional)
 
 ### Community
 - [NetBox GitHub](https://github.com/netbox-community/netbox)

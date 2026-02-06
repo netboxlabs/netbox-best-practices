@@ -113,6 +113,61 @@ response = requests.get(
 )
 ```
 
+## NetBox Branching Plugin (HIGH)
+
+> Requires [netbox-branching](https://github.com/netboxlabs/netbox-branching) plugin.
+
+### Branch Workflow
+
+```python
+import requests
+import time
+
+# 1. Create branch
+branch_resp = requests.post(
+    f"{API_URL}/plugins/branching/branches/",
+    headers=HEADERS,
+    json={"name": "feature-update", "description": "Updates"}
+)
+branch = branch_resp.json()
+schema_id = branch["schema_id"]  # 8-char ID for header
+
+# 2. Wait for READY state
+while True:
+    b = requests.get(f"{API_URL}/plugins/branching/branches/{branch['id']}/", headers=HEADERS).json()
+    if b["status"]["value"] == "ready":
+        break
+    time.sleep(2)
+
+# 3. Work in branch context
+branch_headers = {**HEADERS, "X-NetBox-Branch": schema_id}
+requests.post(f"{API_URL}/dcim/devices/", headers=branch_headers, json={...})
+
+# 4. Merge (async - returns Job)
+merge_resp = requests.post(
+    f"{API_URL}/plugins/branching/branches/{branch['id']}/merge/",
+    headers=HEADERS,
+    json={"commit": True}  # False for dry-run
+)
+job = merge_resp.json()
+
+# 5. Poll job until complete
+while True:
+    j = requests.get(job["url"], headers=HEADERS).json()
+    if j["status"]["value"] == "completed":
+        break
+    if j["status"]["value"] in ("errored", "failed"):
+        raise RuntimeError(f"Merge failed: {j}")
+    time.sleep(2)
+```
+
+### Key Points
+
+- **Header**: `X-NetBox-Branch: {schema_id}` (8-char ID, not branch name)
+- **States**: NEW → PROVISIONING → READY → MERGING → MERGED
+- **Async ops**: sync/merge/revert return Jobs—always poll
+- **Dry-run**: `{"commit": false}` validates without applying
+
 ## References
 
 See `skills/netbox-integration-best-practices/references/rules/integ-*.md` for detailed rules.
