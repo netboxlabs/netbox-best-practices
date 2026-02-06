@@ -50,9 +50,23 @@ response = requests.get(
 )
 ```
 
-## Exclude config_context (HIGH)
+## Exclude Expensive Fields (HIGH)
 
-Config context is expensive to compute. Exclude when not needed.
+Config context and local context are expensive to compute. Exclude when not needed.
+
+**4.5.2+ Use `?omit=` Parameter** ([#21244](https://github.com/netbox-community/netbox/pull/21244)):
+
+```python
+# Exclude multiple expensive fields (4.5.2+)
+response = requests.get(
+    f"{API_URL}/dcim/devices/",
+    params={"omit": "config_context,local_context_data"}
+)
+```
+
+The `?omit=` parameter is the inverse of `?fields=` - include everything except the specified fields.
+
+**Pre-4.5.2 Use `?exclude=` Parameter**:
 
 ```python
 response = requests.get(

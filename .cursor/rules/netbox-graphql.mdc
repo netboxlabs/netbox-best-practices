@@ -76,10 +76,25 @@ NetBox uses offset pagination which slows as you paginate deeper:
 | Version | Strategy |
 |---------|----------|
 | 4.4.x | Offset only (avoid deep pagination) |
-| 4.5.x | ID range filtering workaround |
-| 4.6.0+ | Cursor-based (`start` param) - [#21110](https://github.com/netbox-community/netbox/issues/21110) |
+| 4.5.0-4.5.1 | ID range filtering workaround |
+| 4.5.2+ | Cursor-based (`start` param) - [#21110](https://github.com/netbox-community/netbox/issues/21110) |
 
-**4.5.x workaround** - Emulate cursors with ID filtering:
+**4.5.2+ cursor-based pagination** - Use the `start` parameter with the primary key:
+
+```graphql
+query GetDevices($startPk: Int, $limit: Int!) {
+  device_list(pagination: { start: $startPk, limit: $limit }) {
+    id  # Track max(id) for next page's start value
+    name
+  }
+}
+```
+
+The `start` parameter yields: `Device.objects.order_by('pk').filter(pk__gte=start)[:limit]`
+
+For the next page, use `start = max(id) + 1` from the previous result.
+
+**4.5.0-4.5.1 workaround** - Emulate cursors with ID filtering:
 
 ```graphql
 query GetDevices($minId: Int!, $limit: Int!) {
@@ -181,6 +196,14 @@ query {
 | Bulk create/update/delete | REST |
 | Complex nested queries | GraphQL (with care) |
 | High-volume reads | REST with brief mode |
+
+## NetBox 4.5.2+ GraphQL Performance Improvements
+
+**Per-Request Caching (4.5.2+)**
+- ObjectType instances are cached per-request ([#21259](https://github.com/netbox-community/netbox/pull/21259))
+- CustomField values are cached per-request ([#21300](https://github.com/netbox-community/netbox/pull/21300))
+
+These improvements significantly reduce duplicate database queries in nested GraphQL queries. When the same object is referenced multiple times in a single query (e.g., the same site appearing across many devices), NetBox now caches the resolved object instead of re-fetching it.
 
 ## References
 
